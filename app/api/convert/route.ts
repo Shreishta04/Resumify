@@ -2,24 +2,44 @@ import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { CONVERSION_SYSTEM_PROMPT } from '@/lib/prompts';
 
-export const maxDuration = 30;
+export const maxDuration = 60;
+
+// Retry helper for transient Gemini errors (503 high demand, 429 rate limit)
+async function withRetry<T>(fn: () => Promise<T>, retries = 4, baseDelay = 1500): Promise<T> {
+  let lastErr: unknown;
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await fn();
+    } catch (err: unknown) {
+      lastErr = err;
+      const msg = err instanceof Error ? err.message : String(err);
+      const status = (err as { status?: number }).status;
+      const transient = status === 503 || status === 429 || /503|429|high demand|overloaded|unavailable|rate/i.test(msg);
+      if (!transient || i === retries - 1) throw err;
+      await new Promise((r) => setTimeout(r, baseDelay * (i + 1)));
+    }
+  }
+  throw lastErr;
+}
 
 async function doConvert(text: string): Promise<string> {
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
   const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
-  const result = await model.generateContent({
-    contents: [
-      {
-        role: 'user',
-        parts: [
-          {
-            text: `${CONVERSION_SYSTEM_PROMPT}\n\nHere is the resume text to convert:\n\n${text}`,
-          },
-        ],
-      },
-    ],
-  });
+  const result = await withRetry(() =>
+    model.generateContent({
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            {
+              text: `${CONVERSION_SYSTEM_PROMPT}\n\nHere is the resume text to convert:\n\n${text}`,
+            },
+          ],
+        },
+      ],
+    })
+  );
 
   const responseText = result.response.text();
 
@@ -42,19 +62,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No text provided' }, { status: 400 });
     }
 
-    let latex: string;
-    try {
-      latex = await doConvert(text);
-    } catch (err: unknown) {
-      const status = (err as { status?: number }).status;
-      if (status === 429) {
-        // Retry once after a brief wait
-        await new Promise((r) => setTimeout(r, 2000));
-        latex = await doConvert(text);
-      } else {
-        throw err;
-      }
-    }
+    const latex = await doConvert(text);
 
     if (!latex) {
       return NextResponse.json({ error: 'Conversion returned empty result' }, { status: 500 });
@@ -63,9 +71,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ latex });
   } catch (err: unknown) {
     console.error('Convert error:', err);
+    const msg = err instanceof Error ? err.message : '';
     const status = (err as { status?: number }).status;
-    if (status === 429) {
+    if (status === 429 || /429|rate/i.test(msg)) {
       return NextResponse.json({ error: 'AI is busy — try again in a moment' }, { status: 429 });
+    }
+    if (status === 503 || /503|high demand|overloaded|unavailable/i.test(msg)) {
+      return NextResponse.json({ error: 'AI is busy right now — please try again in a moment' }, { status: 503 });
     }
     return NextResponse.json({ error: 'Conversion failed' }, { status: 500 });
   }
