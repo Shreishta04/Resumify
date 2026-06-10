@@ -52,10 +52,15 @@ export function latexToHtml(latex: string): string {
   try {
     let html = latex;
 
-    // Extract body content
+    // Extract body content. If there's no document body, don't render the raw
+    // preamble (that produces garbage like "#1 -2pt") — show a clear message.
     const bodyMatch = html.match(/\\begin\{document\}([\s\S]*?)\\end\{document\}/);
     if (bodyMatch) {
       html = bodyMatch[1];
+    } else if (html.includes('\\begin{document}')) {
+      html = html.slice(html.indexOf('\\begin{document}') + '\\begin{document}'.length);
+    } else {
+      return '<div class="preview-error">Preview unavailable — the LaTeX is missing its document body (\\begin{document} … \\end{document}).</div>';
     }
 
     // Remove comments

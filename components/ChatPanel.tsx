@@ -68,35 +68,42 @@ export default function ChatPanel({ latex, onLatexUpdate, onError }: ChatPanelPr
         // Don't dump raw LaTeX into the chat — keep a clean status while streaming
       }
 
-      // Extract LaTeX from the response (strip any markdown fences first)
-      const cleaned = full.replace(/```(?:latex)?/gi, '');
-      const latexMatch = cleaned.match(/\\documentclass[\s\S]*?\\end\{document\}/);
-      if (latexMatch) {
-        onLatexUpdate(latexMatch[0]);
+      const setLast = (content: string) =>
         setMessages((prev) => {
           const updated = [...prev];
-          updated[updated.length - 1] = { role: 'assistant', content: 'Done! I\'ve applied your changes to the resume. ✦' };
+          updated[updated.length - 1] = { role: 'assistant', content };
           return updated;
         });
-      } else if (cleaned.includes('\\documentclass')) {
-        // Got a documentclass but no closing — likely truncated. Apply what we have.
-        onLatexUpdate(cleaned.slice(cleaned.indexOf('\\documentclass')).trim());
-        setMessages((prev) => {
-          const updated = [...prev];
-          updated[updated.length - 1] = { role: 'assistant', content: 'Applied your changes (response may have been long — double-check the result).' };
-          return updated;
-        });
-      } else {
-        // No LaTeX detected — show the model's reply as-is
-        setMessages((prev) => {
-          const updated = [...prev];
-          updated[updated.length - 1] = {
-            role: 'assistant',
-            content: full.trim() || 'I couldn\'t generate an update. Try rephrasing your request.',
-          };
-          return updated;
-        });
+
+      const cleaned = full.replace(/```(?:latex)?/gi, '').trim();
+
+      // Case 1: conversational reply (model was told to prefix with REPLY:)
+      if (/^REPLY:/i.test(cleaned) || !cleaned.includes('\\documentclass')) {
+        setLast(cleaned.replace(/^REPLY:\s*/i, '') || 'Tell me what you\'d like to change about your resume.');
+        return;
       }
+
+      // Case 2: an edit — extract the full document
+      const latexMatch = cleaned.match(/\\documentclass[\s\S]*\\end\{document\}/);
+      if (!latexMatch) {
+        // Has \documentclass but no \end{document} → truncated/incomplete. Do NOT apply.
+        setLast('That edit came back incomplete, so I left your resume unchanged. Try a smaller, more specific change.');
+        return;
+      }
+
+      const candidate = latexMatch[0];
+
+      // SAFETY GUARD: never apply destructive output. The result must still contain
+      // the document body and be roughly the same size as the original (no wiping).
+      const hasBody = candidate.includes('\\begin{document}') && candidate.includes('\\end{document}');
+      const longEnough = candidate.length >= latex.length * 0.5;
+      if (!hasBody || !longEnough) {
+        setLast('I couldn\'t safely apply that — the result looked incomplete, so I kept your current resume. Please rephrase the change.');
+        return;
+      }
+
+      onLatexUpdate(candidate);
+      setLast('Done! I\'ve applied your changes to the resume. ✦');
     } catch (err) {
       setThinking(false);
       // Remove the empty assistant placeholder if present

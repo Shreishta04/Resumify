@@ -15,18 +15,19 @@ export async function POST(req: NextRequest) {
     const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
     const stream = await groq.chat.completions.create({
-      model: 'llama-3.1-8b-instant',
+      // 70B model is far better at preserving the full document structure than 8B,
+      // which tended to drop the body and return only the preamble.
+      model: 'llama-3.3-70b-versatile',
+      temperature: 0.2,
       messages: [
         { role: 'system', content: CHAT_SYSTEM_PROMPT },
         {
           role: 'user',
-          content: `Current LaTeX:\n\n${latex}\n\nInstruction: ${message}`,
+          content: `CURRENT LATEX:\n\n${latex}\n\nMESSAGE: ${message}`,
         },
       ],
       stream: true,
-      // Groq free tier caps at 6000 tokens/min (input + output combined).
-      // A full resume input is ~2500 tokens, so keep output headroom under that.
-      max_tokens: 3000,
+      max_tokens: 4000,
     });
 
     const encoder = new TextEncoder();
