@@ -19,10 +19,10 @@ export async function POST(req: NextRequest) {
     if (ext === 'txt') {
       text = await file.text();
     } else if (ext === 'pdf') {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const pdfParseModule = await import('pdf-parse') as any;
-      const pdfParse = pdfParseModule.default || pdfParseModule;
       const buffer = Buffer.from(await file.arrayBuffer());
+      // Import the internal lib directly to avoid pdf-parse loading test files on Vercel
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const pdfParse = require('pdf-parse/lib/pdf-parse.js');
       const data = await pdfParse(buffer);
       text = data.text;
     } else if (ext === 'docx') {
@@ -35,12 +35,12 @@ export async function POST(req: NextRequest) {
     }
 
     if (!text.trim()) {
-      return NextResponse.json({ error: 'Could not extract text from file' }, { status: 400 });
+      return NextResponse.json({ error: 'Could not extract text from file — try converting to .txt and uploading that' }, { status: 400 });
     }
 
     return NextResponse.json({ text });
   } catch (err) {
     console.error('Parse error:', err);
-    return NextResponse.json({ error: 'Failed to parse file' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to parse file — try saving as .txt and uploading that instead' }, { status: 500 });
   }
 }
