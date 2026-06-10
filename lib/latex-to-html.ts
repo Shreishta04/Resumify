@@ -155,6 +155,8 @@ export function latexToHtml(latex: string): string {
     html = html.replace(/\\[a-zA-Z]+(?:\[[^\]]*\])?\{[^}]*\}/g, '');
     html = html.replace(/\\[a-zA-Z]+\*?\s/g, '');
     html = html.replace(/\\\\/g, '<br/>');
+    // Strip stray leftover braces (e.g. from \small{\item{ ... }} skills wrappers)
+    html = html.replace(/[{}]/g, '');
 
     return `
       <div class="resume-doc">

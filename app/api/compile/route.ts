@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   try {
@@ -10,31 +10,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No LaTeX provided' }, { status: 400 });
     }
 
-    // Use latexonline.cc to compile
-    const formData = new FormData();
-    formData.append('filecontents[]', new Blob([latex], { type: 'text/plain' }), 'resume.tex');
-    formData.append('filename[]', 'resume.tex');
+    // latexonline.cc compiles a single .tex file via GET ?text=<url-encoded source>
+    const url = 'https://latexonline.cc/compile?text=' + encodeURIComponent(latex);
 
-    const response = await fetch('https://latexonline.cc/compile', {
-      method: 'POST',
-      body: formData,
-      signal: AbortSignal.timeout(25000),
+    const response = await fetch(url, {
+      method: 'GET',
+      signal: AbortSignal.timeout(45000),
     });
 
-    if (!response.ok) {
-      const errText = await response.text().catch(() => '');
-      console.error('LaTeX compile error:', errText);
-      return NextResponse.json(
-        { error: 'PDF compile failed — check your LaTeX for syntax errors', log: errText },
-        { status: 422 }
-      );
-    }
-
     const contentType = response.headers.get('content-type') || '';
-    if (!contentType.includes('pdf')) {
-      const body = await response.text().catch(() => '');
+
+    if (!response.ok || !contentType.includes('pdf')) {
+      const log = await response.text().catch(() => '');
+      console.error('LaTeX compile error:', log.slice(0, 1000));
       return NextResponse.json(
-        { error: 'PDF service returned unexpected response', log: body },
+        { error: 'PDF compile failed — check your LaTeX for syntax errors', log: log.slice(0, 2000) },
         { status: 422 }
       );
     }
@@ -49,10 +39,9 @@ export async function POST(req: NextRequest) {
     });
   } catch (err: unknown) {
     console.error('Compile error:', err);
-    const message = err instanceof Error ? err.message : '';
-    if (message.includes('timeout') || message.includes('abort')) {
-      return NextResponse.json({ error: 'PDF service unavailable — copy LaTeX and compile at overleaf.com' }, { status: 503 });
-    }
-    return NextResponse.json({ error: 'PDF service unavailable — copy LaTeX and compile at overleaf.com' }, { status: 503 });
+    return NextResponse.json(
+      { error: 'PDF service unavailable — copy LaTeX and compile at overleaf.com' },
+      { status: 503 }
+    );
   }
 }

@@ -5,7 +5,7 @@ export const JAKE_TEMPLATE = `%-------------------------
 % License : MIT
 %------------------------
 
-\\documentclass[letterpaper,11pt]{article}
+\\documentclass[a4paper,11pt]{article}
 
 \\usepackage{latexsym}
 \\usepackage[empty]{fullpage}
@@ -18,6 +18,7 @@ export const JAKE_TEMPLATE = `%-------------------------
 \\usepackage{fancyhdr}
 \\usepackage[english]{babel}
 \\usepackage{tabularx}
+\\usepackage{ragged2e}
 \\input{glyphtounicode}
 
 
@@ -49,7 +50,7 @@ export const JAKE_TEMPLATE = `%-------------------------
 \\urlstyle{same}
 
 \\raggedbottom
-\\raggedright
+\\justifying
 \\setlength{\\tabcolsep}{0in}
 
 % Sections formatting
@@ -64,7 +65,7 @@ export const JAKE_TEMPLATE = `%-------------------------
 % Custom commands
 \\newcommand{\\resumeItem}[1]{
   \\item\\small{
-    {#1 \\vspace{-2pt}}
+    {\\justifying #1 \\vspace{-2pt}}
   }
 }
 
@@ -187,10 +188,10 @@ export const JAKE_TEMPLATE = `%-------------------------
 \\section{Technical Skills}
  \\begin{itemize}[leftmargin=0.15in, label={}]
     \\small{\\item{
-     \\textbf{Languages}{: Java, Python, C/C++, SQL (Postgres), JavaScript, HTML/CSS, R} \\\\
-     \\textbf{Frameworks}{: React, Node.js, Flask, JUnit, WordPress, Material-UI, FastAPI} \\\\
-     \\textbf{Developer Tools}{: Git, Docker, TravisCI, Google Cloud Platform, VS Code, Visual Studio, PyCharm, IntelliJ, Eclipse} \\\\
-     \\textbf{Libraries}{: pandas, NumPy, Matplotlib, scikit-learn, OpenCV, PyTorch}
+     \\textbf{Languages}: Java, Python, C/C++, SQL (Postgres), JavaScript, HTML/CSS, R \\\\
+     \\textbf{Frameworks}: React, Node.js, Flask, JUnit, WordPress, Material-UI, FastAPI \\\\
+     \\textbf{Developer Tools}: Git, Docker, TravisCI, Google Cloud Platform, VS Code, Visual Studio, PyCharm, IntelliJ, Eclipse \\\\
+     \\textbf{Libraries}: pandas, NumPy, Matplotlib, scikit-learn, OpenCV, PyTorch
     }}
  \\end{itemize}
 

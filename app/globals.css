@@ -76,7 +76,7 @@ a:hover {
 .resume-contact {
   font-size: 10pt;
   text-align: center;
-  line-height: 1.8;
+  line-height: 1.35;
 }
 
 .resume-contact a { color: #000; text-decoration: underline; }
@@ -125,7 +125,7 @@ a:hover {
 .date, .location { font-size: 10pt; font-style: italic; white-space: nowrap; margin-left: 8px; }
 
 .item-list { list-style: disc; padding-left: 18px; margin-top: 3px; }
-.resume-item { font-size: 10pt; margin-bottom: 2px; line-height: 1.25; }
+.resume-item { font-size: 10pt; margin-bottom: 2px; line-height: 1.25; text-align: justify; }
 
 .skills-list { list-style: none; padding: 0; }
 .skills-list .resume-item { margin-bottom: 2px; }

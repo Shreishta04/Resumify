@@ -16,8 +16,11 @@ Instructions:
 7. Most recent entries should appear first within each section
 8. Standardize date formats to "Mon. YYYY -- Mon. YYYY" or "Mon. YYYY -- Present"
 9. Clean up formatting, fix grammar, make bullets start with strong action verbs
-10. Output ONLY the complete LaTeX source from \\documentclass to \\end{document}
-11. No explanation, no markdown fences, no commentary — just raw valid LaTeX`;
+10. Keep the document class as \\documentclass[a4paper,11pt]{article} (A4 size)
+11. In the Technical Skills section, write categories as \\textbf{Category}: items (do NOT wrap the colon and items in extra braces like \\textbf{Category}{: items} — that is wrong)
+12. Escape special LaTeX characters in user content: & becomes \\&, % becomes \\%, _ becomes \\_, # becomes \\#
+13. Output ONLY the complete LaTeX source from \\documentclass to \\end{document}
+14. No explanation, no markdown fences, no commentary — just raw valid LaTeX`;
 
 export const CHAT_SYSTEM_PROMPT = `You are an expert LaTeX resume editor. The user will give you instructions to modify their resume.
 You will be given their current LaTeX source (Jake's resume template format) and an instruction.
