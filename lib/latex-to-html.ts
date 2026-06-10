@@ -8,7 +8,7 @@ function extractArgs(str: string, pos: number, count: number): { args: string[];
     if (str[i] !== '{') break;
     // Find matching closing brace
     let depth = 0;
-    let start = i;
+    const start = i;
     for (; i < str.length; i++) {
       if (str[i] === '{') depth++;
       else if (str[i] === '}') {
@@ -136,7 +136,7 @@ export function latexToHtml(latex: string): string {
 
     // ---- tabular ----
     html = html.replace(/\\begin\{tabular\*\}[\s\S]*?\\end\{tabular\*\}/g, (match) => {
-      let inner = match
+      const inner = match
         .replace(/\\begin\{tabular\*\}[^\n]*/g, '')
         .replace(/\\end\{tabular\*\}/g, '')
         .replace(/\\\\/g, '<br/>')
