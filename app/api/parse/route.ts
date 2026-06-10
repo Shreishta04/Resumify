@@ -20,11 +20,17 @@ export async function POST(req: NextRequest) {
       text = await file.text();
     } else if (ext === 'pdf') {
       const buffer = Buffer.from(await file.arrayBuffer());
-      // Import the internal lib directly to avoid pdf-parse loading test files on Vercel
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const pdfParse = require('pdf-parse/lib/pdf-parse.js');
+      const pdfParse = require('pdf-parse');
       const data = await pdfParse(buffer);
       text = data.text;
+
+      // If very little text was extracted, the PDF is likely image-based / scanned
+      if (text.trim().length < 50) {
+        return NextResponse.json({
+          error: 'Your PDF appears to be image-based or scanned — text could not be extracted. Please try one of these:\n1. Export your resume as a .docx from Word/Google Docs\n2. Copy-paste your resume text into a .txt file\n3. Use "Save as PDF" instead of scanning'
+        }, { status: 400 });
+      }
     } else if (ext === 'docx') {
       const mammoth = await import('mammoth');
       const buffer = Buffer.from(await file.arrayBuffer());
@@ -35,12 +41,12 @@ export async function POST(req: NextRequest) {
     }
 
     if (!text.trim()) {
-      return NextResponse.json({ error: 'Could not extract text from file — try converting to .txt and uploading that' }, { status: 400 });
+      return NextResponse.json({ error: 'Could not extract text from file — try uploading as .docx or .txt instead' }, { status: 400 });
     }
 
     return NextResponse.json({ text });
   } catch (err) {
     console.error('Parse error:', err);
-    return NextResponse.json({ error: 'Failed to parse file — try saving as .txt and uploading that instead' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to parse file — try uploading as .docx or .txt instead' }, { status: 500 });
   }
 }
