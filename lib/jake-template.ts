@@ -18,7 +18,6 @@ export const JAKE_TEMPLATE = `%-------------------------
 \\usepackage{fancyhdr}
 \\usepackage[english]{babel}
 \\usepackage{tabularx}
-\\usepackage{ragged2e}
 \\input{glyphtounicode}
 
 
@@ -50,7 +49,7 @@ export const JAKE_TEMPLATE = `%-------------------------
 \\urlstyle{same}
 
 \\raggedbottom
-\\justifying
+\\raggedright
 \\setlength{\\tabcolsep}{0in}
 
 % Sections formatting
@@ -65,7 +64,7 @@ export const JAKE_TEMPLATE = `%-------------------------
 % Custom commands
 \\newcommand{\\resumeItem}[1]{
   \\item\\small{
-    {\\justifying #1 \\vspace{-2pt}}
+    {#1 \\vspace{-2pt}}
   }
 }
 
