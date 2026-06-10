@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "app/api/convert/route.ts": { "maxDuration": 30 },
+    "app/api/compile/route.ts": { "maxDuration": 30 },
+    "app/api/parse/route.ts":   { "maxDuration": 15 }
+  }
+}
