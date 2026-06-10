@@ -59,31 +59,54 @@ export default function ChatPanel({ latex, onLatexUpdate, onError }: ChatPanelPr
       const decoder = new TextDecoder();
       let full = '';
       setThinking(false);
-      setMessages((prev) => [...prev, { role: 'assistant', content: '' }]);
+      setMessages((prev) => [...prev, { role: 'assistant', content: 'Updating your resume…' }]);
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         full += decoder.decode(value, { stream: true });
-        setMessages((prev) => {
-          const updated = [...prev];
-          updated[updated.length - 1] = { role: 'assistant', content: full };
-          return updated;
-        });
+        // Don't dump raw LaTeX into the chat — keep a clean status while streaming
       }
 
-      // Extract LaTeX from the response
-      const latexMatch = full.match(/\\documentclass[\s\S]*?\\end\{document\}/);
+      // Extract LaTeX from the response (strip any markdown fences first)
+      const cleaned = full.replace(/```(?:latex)?/gi, '');
+      const latexMatch = cleaned.match(/\\documentclass[\s\S]*?\\end\{document\}/);
       if (latexMatch) {
         onLatexUpdate(latexMatch[0]);
         setMessages((prev) => {
           const updated = [...prev];
-          updated[updated.length - 1] = { role: 'assistant', content: 'Done! I\'ve applied your changes to the resume.' };
+          updated[updated.length - 1] = { role: 'assistant', content: 'Done! I\'ve applied your changes to the resume. ✦' };
+          return updated;
+        });
+      } else if (cleaned.includes('\\documentclass')) {
+        // Got a documentclass but no closing — likely truncated. Apply what we have.
+        onLatexUpdate(cleaned.slice(cleaned.indexOf('\\documentclass')).trim());
+        setMessages((prev) => {
+          const updated = [...prev];
+          updated[updated.length - 1] = { role: 'assistant', content: 'Applied your changes (response may have been long — double-check the result).' };
+          return updated;
+        });
+      } else {
+        // No LaTeX detected — show the model's reply as-is
+        setMessages((prev) => {
+          const updated = [...prev];
+          updated[updated.length - 1] = {
+            role: 'assistant',
+            content: full.trim() || 'I couldn\'t generate an update. Try rephrasing your request.',
+          };
           return updated;
         });
       }
     } catch (err) {
       setThinking(false);
+      // Remove the empty assistant placeholder if present
+      setMessages((prev) => {
+        const updated = [...prev];
+        if (updated.length && updated[updated.length - 1].role === 'assistant' && !updated[updated.length - 1].content) {
+          updated.pop();
+        }
+        return updated;
+      });
       onError(err instanceof Error ? err.message : 'Chat failed');
     }
   };
