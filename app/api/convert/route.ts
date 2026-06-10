@@ -22,23 +22,39 @@ async function withRetry<T>(fn: () => Promise<T>, retries = 4, baseDelay = 1500)
   throw lastErr;
 }
 
-async function doConvert(text: string): Promise<string> {
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+// Free-tier daily quotas differ per model and gemini-2.5-flash is only 20/day.
+// Try the highest-quota / most-available models first, falling back on 429/503.
+const MODEL_FALLBACKS = [
+  'gemini-2.5-flash-lite',
+  'gemini-flash-lite-latest',
+  'gemini-2.0-flash',
+  'gemini-2.5-flash',
+  'gemini-flash-latest',
+];
 
-  const result = await withRetry(() =>
-    model.generateContent({
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            {
-              text: `${CONVERSION_SYSTEM_PROMPT}\n\nHere is the resume text to convert:\n\n${text}`,
-            },
-          ],
-        },
-      ],
-    })
+async function generateWithFallback(prompt: string) {
+  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+  let lastErr: unknown;
+  for (const modelName of MODEL_FALLBACKS) {
+    try {
+      const model = genAI.getGenerativeModel({ model: modelName });
+      return await withRetry(() => model.generateContent(prompt), 2, 1500);
+    } catch (err: unknown) {
+      lastErr = err;
+      const status = (err as { status?: number }).status;
+      const msg = err instanceof Error ? err.message : '';
+      // Only move to the next model on quota/availability errors
+      if (!(status === 429 || status === 503 || /429|503|quota|exceeded|overloaded|unavailable/i.test(msg))) {
+        throw err;
+      }
+    }
+  }
+  throw lastErr;
+}
+
+async function doConvert(text: string): Promise<string> {
+  const result = await generateWithFallback(
+    `${CONVERSION_SYSTEM_PROMPT}\n\nHere is the resume text to convert:\n\n${text}`
   );
 
   const responseText = result.response.text();

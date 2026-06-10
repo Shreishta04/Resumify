@@ -19,28 +19,46 @@ async function withRetry<T>(fn: () => Promise<T>, retries = 4, baseDelay = 1500)
   throw lastErr;
 }
 
+// gemini-2.5-flash free tier is only 20 requests/day. Try higher-quota models first.
+const MODEL_FALLBACKS = [
+  'gemini-2.5-flash-lite',
+  'gemini-flash-lite-latest',
+  'gemini-2.0-flash',
+  'gemini-2.5-flash',
+  'gemini-flash-latest',
+];
+
 async function extractWithGemini(buffer: Buffer): Promise<string> {
   const { GoogleGenerativeAI } = await import('@google/generative-ai');
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
   const base64 = buffer.toString('base64');
+  const parts = [
+    { inlineData: { mimeType: 'application/pdf', data: base64 } },
+    {
+      text: 'Extract all the text content from this resume PDF exactly as it appears. Include all sections: name, contact info, summary, education, experience, projects, skills, certifications. Return only the raw extracted text, no formatting or commentary.',
+    },
+  ];
 
-  return withRetry(async () => {
-    const result = await model.generateContent({
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            { inlineData: { mimeType: 'application/pdf', data: base64 } },
-            {
-              text: 'Extract all the text content from this resume PDF exactly as it appears. Include all sections: name, contact info, summary, education, experience, projects, skills, certifications. Return only the raw extracted text, no formatting or commentary.',
-            },
-          ],
-        },
-      ],
-    });
-    return result.response.text();
-  });
+  let lastErr: unknown;
+  for (const modelName of MODEL_FALLBACKS) {
+    try {
+      const model = genAI.getGenerativeModel({ model: modelName });
+      const result = await withRetry(
+        () => model.generateContent({ contents: [{ role: 'user', parts }] }),
+        2,
+        1500
+      );
+      return result.response.text();
+    } catch (err: unknown) {
+      lastErr = err;
+      const status = (err as { status?: number }).status;
+      const msg = err instanceof Error ? err.message : '';
+      if (!(status === 429 || status === 503 || /429|503|quota|exceeded|overloaded|unavailable/i.test(msg))) {
+        throw err;
+      }
+    }
+  }
+  throw lastErr;
 }
 
 export async function POST(req: NextRequest) {
