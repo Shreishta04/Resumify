@@ -18,24 +18,55 @@ export async function POST(req: NextRequest) {
 
     if (ext === 'txt') {
       text = await file.text();
+
     } else if (ext === 'pdf') {
       const buffer = Buffer.from(await file.arrayBuffer());
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const pdfParse = require('pdf-parse');
-      const data = await pdfParse(buffer);
-      text = data.text;
 
-      // If very little text was extracted, the PDF is likely image-based / scanned
-      if (text.trim().length < 50) {
-        return NextResponse.json({
-          error: 'Your PDF appears to be image-based or scanned — text could not be extracted. Please try one of these:\n1. Export your resume as a .docx from Word/Google Docs\n2. Copy-paste your resume text into a .txt file\n3. Use "Save as PDF" instead of scanning'
-        }, { status: 400 });
+      // First try standard text extraction (fast, free)
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const pdfParse = require('pdf-parse');
+        const data = await pdfParse(buffer);
+        if (data.text && data.text.trim().length > 50) {
+          text = data.text;
+        }
+      } catch {
+        // pdf-parse failed, will fall through to Gemini
       }
+
+      // If text extraction got little/nothing, use Gemini vision (handles scanned/image PDFs)
+      if (!text || text.trim().length < 50) {
+        const { GoogleGenerativeAI } = await import('@google/generative-ai');
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+
+        const base64 = buffer.toString('base64');
+        const result = await model.generateContent({
+          contents: [{
+            role: 'user',
+            parts: [
+              {
+                inlineData: {
+                  mimeType: 'application/pdf',
+                  data: base64,
+                }
+              },
+              {
+                text: 'Extract all the text content from this resume PDF exactly as it appears. Include all sections: name, contact info, education, experience, projects, skills. Return only the raw extracted text, no formatting or commentary.'
+              }
+            ]
+          }]
+        });
+
+        text = result.response.text();
+      }
+
     } else if (ext === 'docx') {
       const mammoth = await import('mammoth');
       const buffer = Buffer.from(await file.arrayBuffer());
       const result = await mammoth.extractRawText({ buffer });
       text = result.value;
+
     } else {
       return NextResponse.json({ error: 'Unsupported file format. Use PDF, DOCX, or TXT.' }, { status: 400 });
     }
