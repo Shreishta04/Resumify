@@ -58,8 +58,9 @@ a:hover {
   font-size: 11pt;
   line-height: 1.2;
   color: #000;
-  padding: 0.5in;
-  max-width: 100%;
+  padding: 36px 40px;
+  width: 640px;
+  box-sizing: border-box;
 }
 
 .resume-header { text-align: center; margin-bottom: 8px; }
@@ -74,16 +75,13 @@ a:hover {
 
 .resume-contact {
   font-size: 10pt;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 2px 4px;
-  line-height: 1.6;
+  text-align: center;
+  line-height: 1.8;
 }
 
 .resume-contact a { color: #000; text-decoration: underline; }
-.resume-contact .sep { margin: 0 4px; }
+
+.resume-contact .sep { margin: 0 3px; }
 
 .resume-section { margin-top: 10px; margin-bottom: 4px; }
 
@@ -100,11 +98,24 @@ a:hover {
 .subheading-item { margin-bottom: 7px; }
 
 .subheading-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  flex-wrap: nowrap;
-  gap: 8px;
+  display: table;
+  width: 100%;
+}
+
+.subheading-row .company,
+.subheading-row .project-title,
+.subheading-row .role {
+  display: table-cell;
+  width: 100%;
+}
+
+.subheading-row .date,
+.subheading-row .location {
+  display: table-cell;
+  white-space: nowrap;
+  padding-left: 8px;
+  text-align: right;
+  vertical-align: baseline;
 }
 
 .company { font-weight: bold; font-size: 10.5pt; }
